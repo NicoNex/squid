@@ -11,21 +11,20 @@ import (
     "github.com/logrusorgru/aurora"
 )
 
-var outDir string
+var buildRoot string
 var wg sync.WaitGroup
-var converter *Converter
 
 func printErr(e error) {
     fmt.Println(aurora.BrightRed(e).Bold())
 }
 
-// func check(e error) {
-//     if e != nil {
-//         fmt.Println(e)
-//         os.Exit(1)
-//     }
-// }
+func die(a interface{}) {
+    fmt.Println(aurora.BrightRed(a).Bold())
+    os.Exit(1)
+}
 
+// Takes as input an array of os.FileInfo and returns an array
+// of non-hidden ones. (All files without '.' in front of the name)
 func filterHidden(files []os.FileInfo) []os.FileInfo {
     var ret []os.FileInfo
 
@@ -38,6 +37,7 @@ func filterHidden(files []os.FileInfo) []os.FileInfo {
 	return ret
 }
 
+// Returns an array of all the non-hidden files in a directory.
 func readDir(filename string) ([]os.FileInfo, error) {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -56,7 +56,9 @@ func isMarkdown(fname string) bool {
     return fname[len(fname)-3:] == ".md"
 }
 
+// Copies a file from src to dst.
 func copyFile(src string, dst string) {
+    defer wg.Done()
     in, err := os.Open(src)
     if err != nil {
         printErr(err)
@@ -78,12 +80,16 @@ func copyFile(src string, dst string) {
     }
 }
 
-func convertMarkdown(src string, dst string) {
+// Converts the markdown src into the html dst.
+func render(src string, dst string) {
     defer wg.Done()
     md, err := ioutil.ReadFile(src)
-    check(err)
-    html := converter.Convert(md)
-    html = converter.AddStyle(html)
+    if err != nil {
+        printErr(err)
+        return
+    }
+    html := renderMarkdown(md)
+    html = addStyle(html)
 
     ofile, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE, 0666)
     if err != nil {
@@ -92,9 +98,9 @@ func convertMarkdown(src string, dst string) {
     }
     defer ofile.Close()
     ofile.WriteString(html)
-    ofile.Close()
 }
 
+// Recursively walks in a directory tree.
 func walkDir(root string) {
 	files, err := readDir(root)
 	if err != nil {
@@ -104,51 +110,62 @@ func walkDir(root string) {
 
 	for _, finfo := range files {
         fname := finfo.Name()
-        path := fmt.Sprintf("%s/%s", root, fname)
-        buildDir := fmt.Sprintf("%s%s", outDir, root[1:])
+        fpath := fmt.Sprintf("%s%s", root, fname)
+        buildDir := fmt.Sprintf("%s%s", buildRoot, root)
 
         if finfo.IsDir() {
-            buildPath := fmt.Sprintf("%s%s", outDir, path[1:])
-            fmt.Printf("creating directory: %s\n", buildPath)
-            err := os.Mkdir(buildPath, 0700)
-            if err != nil {
+            fpath += "/"
+            tmp := fmt.Sprintf("%s%s", buildRoot, fpath)
+            fmt.Printf("creating directory: %s\n", tmp)
+            if err := os.MkdirAll(tmp, 0700); err != nil {
                 printErr(err)
             }
-            walkDir(path)
-		} else {
+            walkDir(fpath)
+        } else {
             if isMarkdown(fname) {
-                htmlPath := fmt.Sprintf("%s%s/%s.html", outDir, root[1:], fname[:len(fname)-3])
+                htmlPath := fmt.Sprintf("%s%s.html", buildDir, fname[:len(fname)-3])
                 fmt.Printf("creating file: %s\n", htmlPath)
                 wg.Add(1)
-                go convertMarkdown(path, htmlPath)
+                go render(fpath, htmlPath)
             } else {
-                destPath := fmt.Sprintf("%s/%s", buildDir, fname)
-                fmt.Printf("copying %s to %s\n", path, destPath)
+                destPath := fmt.Sprintf("%s%s", buildDir, fname)
+                fmt.Printf("copying %s to %s\n", fpath, destPath)
                 wg.Add(1)
-                go copyFile(path, destPath)
+                go copyFile(fpath, destPath)
             }
 		}
 	}
 }
 
+// Removes the './' from the beginning of file names and
+// adds a '/' at the end if missing.
+func sanitise(name string) string {
+    var ret = name
+    if ret[:2] == "./" {
+        ret = ret[2:]
+    }
+    if ret[len(ret)-1] != '/' {
+        ret += "/"
+    }
+    return ret
+}
+
 func main() {
     var args []string
-    var srcdir = "."
+    var srcdir string
 
-    flag.StringVar(&outDir, "o", "./build", "Output directory")
+    flag.StringVar(&buildRoot, "o", "build/", "Output directory")
     flag.Parse()
 
     args = flag.Args()
     if len(args) > 0 {
         srcdir = args[0]
+    } else {
+        die("Please provide a source directory")
     }
-    converter = NewConverter()
-    fmt.Println(srcdir, outDir)
 
-    // if _, err := os.Stat(outDir); os.IsNotExist(err) {
-    //     os.Mkdir(outDir, 0700)
-    // }
-    //
-    // walkDir(srcdir)
-    // wg.Wait()
+    buildRoot = sanitise(buildRoot)
+    srcdir = sanitise(srcdir)
+    walkDir(srcdir)
+    wg.Wait()
 }
