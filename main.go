@@ -158,7 +158,7 @@ func sanitise(name string) string {
 
 func main() {
     var args []string
-    var srcdir string
+    var srcfile string
 
     flag.StringVar(&buildRoot, "o", "build/", "Output directory")
     flag.StringVar(&stylefile, "css", "", "CSS file")
@@ -176,13 +176,28 @@ func main() {
 
     args = flag.Args()
     if len(args) > 0 {
-        srcdir = args[0]
+        srcfile = args[0]
     } else {
-        die("Please provide a source directory")
+        die("Please provide a valid source directory or file")
     }
 
     buildRoot = sanitise(buildRoot)
-    srcdir = sanitise(srcdir)
-    walkDir(srcdir)
-    wg.Wait()
+
+    srcinfo, err := os.Stat(srcfile)
+    if err != nil {
+        die(err)
+    }
+    if srcinfo.IsDir() {
+        srcfile = sanitise(srcfile)
+        walkDir(srcfile)
+        wg.Wait()
+    } else {
+        if isMarkdown(srcinfo.Name()) {
+            wg.Add(1)
+            render(srcfile, srcfile+".html")
+            wg.Wait()
+        } else {
+            die("Please provide a valid source directory or file")
+        }
+    }
 }
