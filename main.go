@@ -146,14 +146,13 @@ func walkDir(root string) {
 // Removes the './' from the beginning of file names and
 // adds a '/' at the end if missing.
 func sanitise(name string) string {
-    var ret = name
-    if ret[:2] == "./" {
-        ret = ret[2:]
+    if name != "." && name[:2] == "./" {
+        name = name[2:]
     }
-    if ret[len(ret)-1] != '/' {
-        ret += "/"
+    if name[len(name)-1] != '/' {
+        name += "/"
     }
-    return ret
+    return name
 }
 
 func main() {
