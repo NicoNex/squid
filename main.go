@@ -12,10 +12,12 @@ import (
 )
 
 var buildRoot string
+var stylefile string
+var stylecont string
 var wg sync.WaitGroup
 
-func printErr(e error) {
-    fmt.Println(aurora.BrightRed(e).Bold())
+func printErr(a interface{}) {
+    fmt.Println(aurora.BrightRed(a).Bold())
 }
 
 func die(a interface{}) {
@@ -89,7 +91,11 @@ func render(src string, dst string) {
         return
     }
     html := renderMarkdown(md)
-    html = addStyle(html)
+    if stylefile != "" {
+        html = addCustomStyle(html, stylecont)
+    } else {
+        html = addStyle(html)
+    }
 
     ofile, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE, 0666)
     if err != nil {
@@ -155,7 +161,18 @@ func main() {
     var srcdir string
 
     flag.StringVar(&buildRoot, "o", "build/", "Output directory")
+    flag.StringVar(&stylefile, "css", "", "CSS file")
     flag.Parse()
+
+    if stylefile != "" {
+        if cont, err := loadCSS(stylefile); err == nil {
+            stylecont = cont
+        } else {
+            printErr(err)
+            printErr("Using fallback theme...")
+            stylefile = ""
+        }
+    }
 
     args = flag.Args()
     if len(args) > 0 {
