@@ -6,6 +6,8 @@ import (
     "fmt"
     "sync"
     "flag"
+    "regexp"
+    "strings"
     "io/ioutil"
 
     "github.com/logrusorgru/aurora"
@@ -97,44 +99,48 @@ func render(src string, dst string) {
         html = addStyle(html)
     }
 
-    ofile, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE, 0666)
+    err = ioutil.WriteFile(dst, []byte(html), 0666)
     if err != nil {
         printErr(err)
-        return
     }
-    defer ofile.Close()
-    ofile.WriteString(html)
+}
+
+func truncateFirstDir(path string) string {
+    re := regexp.MustCompile(`(\w+)\/`)
+    dirs := re.FindAllString(path, -1)
+    return strings.Join(dirs[1:], "")
 }
 
 // Recursively walks in a directory tree.
 func walkDir(root string) {
+    var outdir string
+
 	files, err := readDir(root)
 	if err != nil {
 		printErr(err)
 		return
 	}
 
+    outdir = fmt.Sprintf("%s%s", buildRoot, truncateFirstDir(root))
+    fmt.Printf("creating directory: %s\n", outdir)
+    if err := os.MkdirAll(outdir, 0700); err != nil {
+        die(err)
+    }
+
 	for _, finfo := range files {
         fname := finfo.Name()
         fpath := fmt.Sprintf("%s%s", root, fname)
-        buildDir := fmt.Sprintf("%s%s", buildRoot, root)
 
         if finfo.IsDir() {
-            fpath += "/"
-            tmp := fmt.Sprintf("%s%s", buildRoot, fpath)
-            fmt.Printf("creating directory: %s\n", tmp)
-            if err := os.MkdirAll(tmp, 0700); err != nil {
-                printErr(err)
-            }
-            walkDir(fpath)
+            walkDir(fpath+"/")
         } else {
             if isMarkdown(fname) {
-                htmlPath := fmt.Sprintf("%s%s.html", buildDir, fname[:len(fname)-3])
+                htmlPath := fmt.Sprintf("%s%s.html", outdir, fname[:len(fname)-3])
                 fmt.Printf("creating file: %s\n", htmlPath)
                 wg.Add(1)
                 go render(fpath, htmlPath)
             } else {
-                destPath := fmt.Sprintf("%s%s", buildDir, fname)
+                destPath := fmt.Sprintf("%s%s", outdir, fname)
                 fmt.Printf("copying %s to %s\n", fpath, destPath)
                 wg.Add(1)
                 go copyFile(fpath, destPath)
@@ -156,7 +162,6 @@ func sanitise(name string) string {
 }
 
 func main() {
-    var args []string
     var srcfile string
 
     flag.StringVar(&buildRoot, "o", "build/", "Output directory")
@@ -173,12 +178,13 @@ func main() {
         }
     }
 
-    args = flag.Args()
-    if len(args) > 0 {
-        srcfile = args[0]
+    if flag.NArg() > 0 {
+        srcfile = flag.Arg(0)
     } else {
         die("Please provide a valid source directory or file")
     }
+
+
 
     buildRoot = sanitise(buildRoot)
 
