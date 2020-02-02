@@ -184,8 +184,6 @@ func main() {
 		die("Please provide a valid source directory or file")
 	}
 
-
-
 	buildRoot = sanitise(buildRoot)
 
 	srcinfo, err := os.Stat(srcfile)
