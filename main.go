@@ -6,17 +6,20 @@ import (
 	"fmt"
 	"sync"
 	"flag"
-	"regexp"
+	"path/filepath"
+	// "regexp"
 	"strings"
 	"io/ioutil"
 
 	"github.com/logrusorgru/aurora"
 )
 
-var buildRoot string
-var stylefile string
-var stylecont string
-var wg sync.WaitGroup
+var (
+	buildRoot string
+	stylefile string
+	stylecont string
+	wg sync.WaitGroup
+)
 
 func printErr(a interface{}) {
 	fmt.Println(aurora.BrightRed(a).Bold())
@@ -27,37 +30,18 @@ func die(a interface{}) {
 	os.Exit(1)
 }
 
-// Takes as input an array of os.FileInfo and returns an array
-// of non-hidden ones. (All files without '.' in front of the name)
-func filterHidden(files []os.FileInfo) []os.FileInfo {
-	var ret []os.FileInfo
-
-	for _, f := range files {
-		fname := f.Name()
-		if fname[0] != '.' {
-			ret = append(ret, f)
-		}
-	}
-	return ret
+func isHidden(fname string) bool {
+	return fname[0] == '.'
 }
 
-// Returns an array of all the non-hidden files in a directory.
-func readDir(filename string) ([]os.FileInfo, error) {
-	file, err := os.Open(filename)
-	if err != nil {
-		return []os.FileInfo{}, err
-	}
-	defer file.Close()
-	files, err := file.Readdir(-1)
-	if err != nil {
-		return []os.FileInfo{}, err
-	}
-
-	return filterHidden(files), nil
-}
-
+// Returns true if the filename ends with '.md'.
 func isMarkdown(fname string) bool {
-	return fname[len(fname)-3:] == ".md"
+	ok, err := filepath.Match("*.md", fname)
+	if err != nil {
+		printErr(err)
+		return false
+	}
+	return ok
 }
 
 // Copies a file from src to dst.
@@ -99,72 +83,57 @@ func render(src string, dst string) {
 		html = addStyle(html)
 	}
 
-	err = ioutil.WriteFile(dst, []byte(html), 0666)
+	err = ioutil.WriteFile(dst, []byte(html), 0644)
 	if err != nil {
 		printErr(err)
 	}
 }
 
 func truncateFirstDir(path string) string {
-	re := regexp.MustCompile(`(\w+)\/`)
-	dirs := re.FindAllString(path, -1)
-	return strings.Join(dirs[1:], "")
+	toks := strings.Split(path, string(os.PathSeparator))
+	return filepath.Join(toks[1:]...)
 }
 
-// Recursively walks in a directory tree.
-func walkDir(root string) {
-	var outdir string
+func removeExt(fname string) string {
+	return fname[:len(fname)-3]
+}
 
-	files, err := readDir(root)
+// Replaces the '.md' in a filepath with '.html'
+func toHtml(fname string) string {
+	return strings.Replace(fname, ".md", ".html", -1)
+}
+
+func evaluate(path string, info os.FileInfo, err error) error {
+	var dir, file = filepath.Split(path)
+
 	if err != nil {
-		printErr(err)
-		return
+		return err
 	}
 
-	outdir = fmt.Sprintf("%s%s", buildRoot, truncateFirstDir(root))
-	fmt.Printf("creating directory: %s\n", outdir)
-	if err := os.MkdirAll(outdir, 0700); err != nil {
-		die(err)
+	outdir := filepath.Join(buildRoot, truncateFirstDir(dir))
+	fmt.Printf("Creating directory: %s\n", outdir)
+	if err := os.MkdirAll(outdir, 0755); err != nil {
+		return err
 	}
 
-	for _, finfo := range files {
-		fname := finfo.Name()
-		fpath := fmt.Sprintf("%s%s", root, fname)
-
-		if finfo.IsDir() {
-			walkDir(fpath+"/")
-		} else {
-			if isMarkdown(fname) {
-				htmlPath := fmt.Sprintf("%s%s.html", outdir, fname[:len(fname)-3])
-				fmt.Printf("creating file: %s\n", htmlPath)
-				wg.Add(1)
-				go render(fpath, htmlPath)
-			} else {
-				destPath := fmt.Sprintf("%s%s", outdir, fname)
-				fmt.Printf("copying %s to %s\n", fpath, destPath)
-				wg.Add(1)
-				go copyFile(fpath, destPath)
-			}
-		}
+	if isMarkdown(file) {
+		htmlPath := filepath.Join(outdir, toHtml(file))
+		fmt.Printf("creating file: %s\n", htmlPath)
+		wg.Add(1)
+		go render(path, htmlPath)
+	} else if !info.IsDir() {
+		destPath := filepath.Join(outdir, file)
+		fmt.Printf("copying %s to %s\n", path, destPath)
+		wg.Add(1)
+		go copyFile(path, destPath)
 	}
-}
-
-// Removes the './' from the beginning of file names and
-// adds a '/' at the end if missing.
-func sanitise(name string) string {
-	if name != "." && name[:2] == "./" {
-		name = name[2:]
-	}
-	if name[len(name)-1] != '/' {
-		name += "/"
-	}
-	return name
+	return nil
 }
 
 func main() {
 	var srcfile string
 
-	flag.StringVar(&buildRoot, "o", "build/", "Output directory")
+	// flag.StringVar(&buildRoot, "o", "build/", "Output directory")
 	flag.StringVar(&stylefile, "css", "", "CSS file")
 	flag.Parse()
 
@@ -178,21 +147,25 @@ func main() {
 		}
 	}
 
-	if flag.NArg() > 0 {
-		srcfile = flag.Arg(0)
-	} else {
+	switch argc := flag.NArg(); {
+	case argc == 1:
+		srcfile = filepath.Clean(flag.Arg(0))
+		buildRoot = "build/"
+	case argc > 1:
+		srcfile = filepath.Clean(flag.Arg(0))
+		buildRoot = filepath.Clean(flag.Arg(1))
+	default:
 		die("Please provide a valid source directory or file")
 	}
 
-	buildRoot = sanitise(buildRoot)
+	fmt.Println(buildRoot)
 
 	srcinfo, err := os.Stat(srcfile)
 	if err != nil {
 		die(err)
 	}
 	if srcinfo.IsDir() {
-		srcfile = sanitise(srcfile)
-		walkDir(srcfile)
+		filepath.Walk(srcfile, evaluate)
 		wg.Wait()
 	} else {
 		if isMarkdown(srcinfo.Name()) {
