@@ -1,15 +1,14 @@
 package main
 
 import (
-	"os"
-	"io"
-	"fmt"
-	"sync"
 	"flag"
-	"path/filepath"
-	// "regexp"
-	"strings"
+	"fmt"
+	"io"
 	"io/ioutil"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
 
 	"github.com/logrusorgru/aurora"
 )
@@ -18,7 +17,7 @@ var (
 	buildRoot string
 	stylefile string
 	stylecont string
-	wg sync.WaitGroup
+	wg        sync.WaitGroup
 )
 
 func printErr(a interface{}) {
