@@ -1,3 +1,21 @@
+/*
+ * Squid
+ * Copyright (C) 2019-2020  Nicolò Santamaria
+ *
+ * Squid is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Squid is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package main
 
 import (
@@ -179,6 +197,7 @@ func main() {
 func usage() {
 	fmt.Printf(`squid - A fast markdown to HTML converter.
 Squid convert to HTML a single markdown file or an entire project.
+
 Additionally it copies eventual non-markdown files or assets found in the
 project tree, preserving their relative position to the markdown files.
 
@@ -192,5 +211,7 @@ Options:
         Specify a CSS file to use for styling.
     -h, --help
         Prints this help message and exits.
+
+Copyright (C) 2020 Nicolò Santamaria
 `, os.Args[0])
 }
