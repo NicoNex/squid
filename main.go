@@ -177,12 +177,15 @@ func main() {
 }
 
 func usage() {
-	fmt.Printf(`squid - A fast markdown to HTML converter
+	fmt.Printf(`squid - A fast markdown to HTML converter.
 Squid convert to HTML a single markdown file or an entire project.
-If a build destination is not specified, squid builds in build/ by default.
+Additionally it copies eventual non-markdown files or assets found in the
+project tree, preserving their relative position to the markdown files.
+
+If a build destination is not specified, squid builds in 'build/' by default.
 
 Usage:
-    %s SOURCE [DESTINATION]
+    %s [OPTIONS] SOURCE [DESTINATION]
 
 Options:
     -css string
