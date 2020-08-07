@@ -75,11 +75,11 @@ func render(src string, dst string) {
 		printErr(err)
 		return
 	}
-	html := renderMarkdown(md)
+	html := renderHtml(md)
 	if stylefile != "" {
-		html = addCustomStyle(html, stylecont)
+		html = addStyle(html, stylecont)
 	} else {
-		html = addStyle(html)
+		html = addStyle(html, CSS)
 	}
 
 	err = ioutil.WriteFile(dst, []byte(html), 0644)
