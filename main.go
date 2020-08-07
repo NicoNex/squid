@@ -117,12 +117,12 @@ func evaluate(path string, info os.FileInfo, err error) error {
 
 	if isMarkdown(file) {
 		htmlPath := filepath.Join(outdir, toHtml(file))
-		fmt.Printf("creating file: %s\n", htmlPath)
+		fmt.Printf("Creating file: %s\n", htmlPath)
 		wg.Add(1)
 		go render(path, htmlPath)
 	} else if !info.IsDir() {
 		destPath := filepath.Join(outdir, file)
-		fmt.Printf("copying %s to %s\n", path, destPath)
+		fmt.Printf("Copying %s to %s\n", path, destPath)
 		wg.Add(1)
 		go copyFile(path, destPath)
 	}
@@ -132,7 +132,6 @@ func evaluate(path string, info os.FileInfo, err error) error {
 func main() {
 	var srcfile string
 
-	// flag.StringVar(&buildRoot, "o", "build/", "Output directory")
 	flag.StringVar(&stylefile, "css", "", "CSS file")
 	flag.Parse()
 
@@ -156,8 +155,6 @@ func main() {
 	default:
 		die("Please provide a valid source directory or file")
 	}
-
-	fmt.Println(buildRoot)
 
 	srcinfo, err := os.Stat(srcfile)
 	if err != nil {

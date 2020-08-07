@@ -5,12 +5,19 @@ import (
 	"io/ioutil"
 	"os"
 
+	mdfmt "github.com/shurcooL/markdownfmt/markdown"
 	bf "gopkg.in/russross/blackfriday.v2"
 )
 
+// Returns a formatted markdown file.
+func format(input []byte) []byte {
+	b, _ := mdfmt.Process("", input, nil)
+	return b
+}
+
 // Returns the html rendered from a markdown bytes array.
 func renderMarkdown(md []byte) string {
-	return string(bf.Run(md, bf.WithExtensions(bf.CommonExtensions|bf.NoEmptyLineBeforeBlock)))
+	return string(bf.Run(format(md), bf.WithExtensions(bf.CommonExtensions|bf.NoEmptyLineBeforeBlock)))
 }
 
 // Returns the html in input plus the added css.
