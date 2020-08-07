@@ -133,6 +133,7 @@ func main() {
 	var srcfile string
 
 	flag.StringVar(&stylefile, "css", "", "CSS file")
+	flag.Usage = usage
 	flag.Parse()
 
 	if stylefile != "" {
@@ -153,7 +154,8 @@ func main() {
 		srcfile = filepath.Clean(flag.Arg(0))
 		buildRoot = filepath.Clean(flag.Arg(1))
 	default:
-		die("Please provide a valid source directory or file")
+		flag.Usage()
+		os.Exit(1)
 	}
 
 	srcinfo, err := os.Stat(srcfile)
@@ -169,7 +171,23 @@ func main() {
 			render(srcfile, srcfile+".html")
 			wg.Wait()
 		} else {
-			die("Please provide a valid source directory or file")
+			die("Please provide a valid source directory or file!")
 		}
 	}
+}
+
+func usage() {
+	fmt.Printf(`squid - A fast markdown to HTML converter
+Squid convert to HTML a single markdown file or an entire project.
+If a build destination is not specified, squid builds in build/ by default.
+
+Usage:
+    %s SOURCE [DESTINATION]
+
+Options:
+    -css string
+        Specify a CSS file to use for styling.
+    -h, --help
+        Prints this help message and exits.
+`, os.Args[0])
 }
