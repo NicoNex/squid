@@ -5,8 +5,8 @@ import (
 	"io/ioutil"
 	"os"
 
+	bf "github.com/russross/blackfriday/v2"
 	mdfmt "github.com/shurcooL/markdownfmt/markdown"
-	bf "gopkg.in/russross/blackfriday.v2"
 )
 
 // Returns a formatted markdown file.
