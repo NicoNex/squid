@@ -180,17 +180,16 @@ func main() {
 	if err != nil {
 		die(err)
 	}
+
 	if srcinfo.IsDir() {
 		filepath.Walk(srcfile, evaluate)
 		wg.Wait()
+	} else if isMarkdown(srcinfo.Name()) {
+		wg.Add(1)
+		render(srcfile, toHtml(srcfile))
+		wg.Wait()
 	} else {
-		if isMarkdown(srcinfo.Name()) {
-			wg.Add(1)
-			render(srcfile, srcfile+".html")
-			wg.Wait()
-		} else {
-			die("Please provide a valid source directory or file!")
-		}
+		die("Please provide a valid source directory or file!")
 	}
 }
 
