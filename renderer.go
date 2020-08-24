@@ -26,6 +26,7 @@ import (
 	"github.com/Depado/bfchroma"
 	"github.com/alecthomas/chroma/formatters/html"
 	bf "github.com/russross/blackfriday/v2"
+	mdfmt "github.com/shurcooL/markdownfmt/markdown"
 )
 
 // Defines the extensions that are used
@@ -37,10 +38,16 @@ const exts = bf.NoIntraEmphasis | bf.Tables | bf.FencedCode | bf.Autolink |
 const flags = bf.UseXHTML | bf.Smartypants | bf.SmartypantsFractions |
 	bf.SmartypantsDashes | bf.SmartypantsLatexDashes
 
+// Returns a formatted markdown file.
+func format(input []byte) []byte {
+	b, _ := mdfmt.Process("", input, nil)
+	return b
+}
+
 // Returns the html rendered from a markdown bytes array.
 func renderHtml(md []byte) string {
 	return string(bf.Run(
-		md,
+		format(md),
 		bf.WithExtensions(bf.CommonExtensions|bf.NoEmptyLineBeforeBlock),
 		bf.WithRenderer(
 			bfchroma.NewRenderer(
