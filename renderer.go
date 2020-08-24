@@ -26,7 +26,6 @@ import (
 	"github.com/Depado/bfchroma"
 	"github.com/alecthomas/chroma/formatters/html"
 	bf "github.com/russross/blackfriday/v2"
-	mdfmt "github.com/shurcooL/markdownfmt/markdown"
 )
 
 // Defines the extensions that are used
@@ -38,21 +37,15 @@ const exts = bf.NoIntraEmphasis | bf.Tables | bf.FencedCode | bf.Autolink |
 const flags = bf.UseXHTML | bf.Smartypants | bf.SmartypantsFractions |
 	bf.SmartypantsDashes | bf.SmartypantsLatexDashes
 
-// Returns a formatted markdown file.
-func format(input []byte) []byte {
-	b, _ := mdfmt.Process("", input, nil)
-	return b
-}
-
 // Returns the html rendered from a markdown bytes array.
 func renderHtml(md []byte) string {
 	return string(bf.Run(
-		format(md),
+		md,
 		bf.WithExtensions(bf.CommonExtensions|bf.NoEmptyLineBeforeBlock),
 		bf.WithRenderer(
 			bfchroma.NewRenderer(
 				bfchroma.WithoutAutodetect(),
-				bfchroma.ChromaOptions(html.WithLineNumbers(true)),
+				bfchroma.ChromaOptions(html.WithLineNumbers(false)),
 				bfchroma.Extend(
 					bf.NewHTMLRenderer(bf.HTMLRendererParameters{Flags: flags}),
 				),
@@ -64,7 +57,7 @@ func renderHtml(md []byte) string {
 }
 
 func addStyle(in string, style string) string {
-	return fmt.Sprintf("<!DOCTYPE html>\n<style>\n\t%s</style>\n%s", style, in)
+	return fmt.Sprintf("<!DOCTYPE html>\n<style>\n%s\n</style>\n%s", style, in)
 }
 
 func loadCSS(filepath string) (string, error) {
